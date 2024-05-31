@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  flask-app:
+    image: infisical_python_hens:latest
+    build:
+      context: .
+      dockerfile: Dockerfile  # Path to your Dockerfile if different
+    ports:
+      - "5000:5000"

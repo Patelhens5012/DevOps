@@ -1,0 +1,45 @@
+pipeline {
+    agent any
+
+    environment {
+        SSH_USER = 'ec2-user'
+        EC2_INSTANCE_IP = '13.48.1.50' // IP or hostname of your EC2 instance
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                script {
+                    checkout([$class: 'GitSCM', branches: [[name: "${params.DEPLOY_BRANCH}"]], userRemoteConfigs: [[url: 'ssh://git@gitlab.webelight.co.in:2224/webelight/devops/training.git']]])
+                }
+            }
+        }
+
+        stage('Transfer Docker files to EC2') {
+            steps {
+                script {
+                    sh "scp -o StrictHostKeyChecking=no -i /var/lib/jenkins/.ssh/id_rsa docker-compose.yml Dockerfile package.json ${SSH_USER}@${EC2_INSTANCE_IP}:~/"
+                }
+            }
+        }
+
+        stage('Deploy with Docker Compose') {
+            steps {
+                script {
+                    sshagent(credentials: ['aws_ssh_key']) {
+                        sh "ssh -o StrictHostKeyChecking=no -p 22 ${SSH_USER}@${EC2_INSTANCE_IP} 'cd ~ && docker-compose up -d'"
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Pipeline succeeded!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}

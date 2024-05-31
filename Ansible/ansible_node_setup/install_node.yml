@@ -1,0 +1,42 @@
+---
+- name: Install Node.js and check version
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Install Node.js
+      package:
+        name: nodejs
+        state: present
+
+    - name: Get latest Node.js version
+      uri:
+        url: "https://nodejs.org/dist/latest/SHASUMS256.txt"
+        return_content: yes
+      register: latest_version
+
+    - name: Parse latest Node.js version
+      set_fact:
+        latest_node_version: "{{ latest_version.content | regex_findall('node-v([0-9.]+)-linux-x64.tar.gz') | first }}"
+      failed_when: latest_node_version == ""
+
+    - name: Get installed Node.js version
+      command: "node --version"
+      register: installed_version
+      ignore_errors: true
+
+    - debug:
+        msg: 
+          - "Latest Node.js version: {{ latest_node_version }}"
+          - "Installed Node.js version: {{ installed_version.stdout | default('Node.js not installed') }}"
+
+    - name: Prompt user to install latest version
+      pause:
+        prompt: "Do you want to install the latest version of Node.js? (yes/no)"
+      register: user_input
+      become: no
+
+    - name: Install latest version if requested
+      when: user_input.user_input == 'yes'
+      package:
+        name: nodejs
+        state: latest
